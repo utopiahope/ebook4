@@ -2,20 +2,19 @@
 <html lang="vi">
 <head>
   <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-VS46EZMCS4"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-VS46EZMCS4');
-</script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VS46EZMCS4"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-VS46EZMCS4');
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ebook + Botpress</title>
 
   <style>
-    /* 1. Giữ nguyên cấu hình Ebook của bạn */
+    /* Giữ nguyên cấu hình Ebook của bạn */
     body, html {
       margin: 0;
       padding: 0;
@@ -29,13 +28,26 @@
       height: 100vh;
       border: none;
       display: block;
-      /* Đặt z-index thấp để Botpress luôn nổi lên trên */
       position: absolute;
       top: 0;
       left: 0;
       z-index: 0;
     }
   </style>
+
+  <!-- [PHẦN THÊM MỚI 1] Cấu hình và tải thư viện MathJax -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
 
@@ -46,11 +58,9 @@
     scrolling="no">
   </iframe>
 
- 
-    <script src="https://cdn.botpress.cloud/webchat/v3.5/inject.js"></script>
-    <script src="https://files.bpcontent.cloud/2026/01/20/13/20260120133434-8RWTQ323.js" defer></script>
-    
-
+  <script src="https://cdn.botpress.cloud/webchat/v3.5/inject.js"></script>
+  <script src="https://files.bpcontent.cloud/2026/01/20/13/20260120133434-8RWTQ323.js" defer></script>
+  
   <script>
     function fixBotSize() {
       // Tìm tất cả các thẻ DIV để bắt giao diện Botpress
@@ -60,18 +70,28 @@
         // Nếu tìm thấy giao diện Botpress (có Shadow DOM)
         if (div.shadowRoot) {
             // Dùng lệnh ZOOM 0.75 để thu nhỏ toàn bộ widget còn 75%
-            // Cách này an toàn hơn scale vì không làm vỡ giao diện
             div.style.setProperty('zoom', '0.75', 'important');
-            
-            // Cố định vị trí góc phải dưới
             div.style.setProperty('position', 'fixed', 'important');
             div.style.setProperty('bottom', '20px', 'important');
             div.style.setProperty('right', '20px', 'important');
-            
-            // Đảm bảo hiển thị (Chống lỗi biến mất)
             div.style.setProperty('display', 'block', 'important');
             div.style.setProperty('visibility', 'visible', 'important');
             div.style.setProperty('z-index', '9999', 'important');
+
+            // [PHẦN THÊM MỚI 2] Gắn bộ quét MathJax vào thẳng Shadow DOM của Botpress
+            // Lệnh if này đảm bảo việc gắn bộ theo dõi chỉ diễn ra 1 lần duy nhất
+            if (!div.dataset.mathjaxObserved) {
+              const observer = new MutationObserver(() => {
+                if (window.MathJax && window.MathJax.typesetPromise) {
+                  // Ép MathJax chỉ quét và dịch công thức bên trong khung chat của Botpress
+                  MathJax.typesetPromise([div.shadowRoot]).catch((err) => console.log('Lỗi render LaTeX:', err));
+                }
+              });
+              
+              // Theo dõi mọi tin nhắn mới xuất hiện trong khung chat
+              observer.observe(div.shadowRoot, { childList: true, subtree: true });
+              div.dataset.mathjaxObserved = "true"; // Đánh dấu là đã gắn thành công
+            }
         }
       });
     }
@@ -83,4 +103,3 @@
 
 </body>
 </html>
-
