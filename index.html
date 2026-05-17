@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="vi">
 <head>
-  <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-VS46EZMCS4"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -35,12 +34,18 @@
     }
   </style>
 
-  <!-- [PHẦN THÊM MỚI 1] Cấu hình và tải thư viện MathJax -->
   <script>
     window.MathJax = {
       tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true, // Cho phép dùng \$
+        processEnvironments: true,
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
       },
       svg: {
         fontCache: 'global'
@@ -58,19 +63,16 @@
     scrolling="no">
   </iframe>
 
- 
-<script src="https://cdn.botpress.cloud/webchat/v3.6/inject.js"></script>
-<script src="https://files.bpcontent.cloud/2026/01/20/13/20260120133434-8RWTQ323.js" defer></script>
+  <script src="https://cdn.botpress.cloud/webchat/v3.6/inject.js"></script>
+  <script src="https://files.bpcontent.cloud/2026/01/20/13/20260120133434-8RWTQ323.js" defer></script>
   
   <script>
+    // 1. Hàm cố định kích thước Botpress
     function fixBotSize() {
-      // Tìm tất cả các thẻ DIV để bắt giao diện Botpress
       const allDivs = document.body.querySelectorAll('div');
       
       allDivs.forEach(div => {
-        // Nếu tìm thấy giao diện Botpress (có Shadow DOM)
         if (div.shadowRoot) {
-            // Dùng lệnh ZOOM 0.75 để thu nhỏ toàn bộ widget còn 75%
             div.style.setProperty('zoom', '0.75', 'important');
             div.style.setProperty('position', 'fixed', 'important');
             div.style.setProperty('bottom', '20px', 'important');
@@ -78,28 +80,30 @@
             div.style.setProperty('display', 'block', 'important');
             div.style.setProperty('visibility', 'visible', 'important');
             div.style.setProperty('z-index', '9999', 'important');
-
-            // [PHẦN THÊM MỚI 2] Gắn bộ quét MathJax vào thẳng Shadow DOM của Botpress
-            // Lệnh if này đảm bảo việc gắn bộ theo dõi chỉ diễn ra 1 lần duy nhất
-            if (!div.dataset.mathjaxObserved) {
-              const observer = new MutationObserver(() => {
-                if (window.MathJax && window.MathJax.typesetPromise) {
-                  // Ép MathJax chỉ quét và dịch công thức bên trong khung chat của Botpress
-                  MathJax.typesetPromise([div.shadowRoot]).catch((err) => console.log('Lỗi render LaTeX:', err));
-                }
-              });
-              
-              // Theo dõi mọi tin nhắn mới xuất hiện trong khung chat
-              observer.observe(div.shadowRoot, { childList: true, subtree: true });
-              div.dataset.mathjaxObserved = "true"; // Đánh dấu là đã gắn thành công
-            }
         }
       });
     }
 
-    // Chạy kiểm tra liên tục trong 10 giây đầu để đảm bảo Bot nhận lệnh
+    // [PHẦN CẬP NHẬT 2] Hàm ép MathJax dịch công thức liên tục (Trị lỗi hiệu ứng gõ chữ)
+    function forceMathJaxRender() {
+      if (!window.MathJax || !window.MathJax.typesetPromise) return;
+
+      const allDivs = document.body.querySelectorAll('div');
+      allDivs.forEach(div => {
+        if (div.shadowRoot) {
+          // Lệnh typesetClear giúp xóa bộ nhớ tạm, ép MathJax quét lại bản hoàn chỉnh của tin nhắn
+          MathJax.typesetClear([div.shadowRoot]);
+          MathJax.typesetPromise([div.shadowRoot]).catch((err) => console.log('Lỗi render LaTeX:', err));
+        }
+      });
+    }
+
+    // Chạy fixBotSize nhanh trong 10 giây đầu để set up giao diện
     const checker = setInterval(fixBotSize, 500);
     setTimeout(() => clearInterval(checker), 10000);
+
+    // Chạy bộ quét MathJax liên tục mỗi 1.5 giây
+    setInterval(forceMathJaxRender, 1500);
   </script>
 
 </body>
