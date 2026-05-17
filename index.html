@@ -20,7 +20,7 @@
     }
   </style>
 
-  <!-- Đã thay thế MathJax bằng KaTeX (Hỗ trợ Shadow DOM tốt hơn) -->
+  <!-- Load KaTeX -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
@@ -33,60 +33,92 @@
   <script src="https://files.bpcontent.cloud/2026/01/20/13/20260120133434-8RWTQ323.js" defer></script>
   
   <script>
-    // 1. Hàm giữ nguyên kích thước Botpress
-    function fixBotSize() {
-      const allElements = document.body.querySelectorAll('*');
-      allElements.forEach(el => {
-        if (el.shadowRoot) {
-            el.style.setProperty('zoom', '0.75', 'important');
-            el.style.setProperty('position', 'fixed', 'important');
-            el.style.setProperty('bottom', '20px', 'important');
-            el.style.setProperty('right', '20px', 'important');
-            el.style.setProperty('display', 'block', 'important');
-            el.style.setProperty('visibility', 'visible', 'important');
-            el.style.setProperty('z-index', '9999', 'important');
-        }
+    let bpShadowRoot = null;
+    let chatObserver = null;
+    let renderTimeout = null;
+
+    // 1. Hàm render công thức toán học
+    function doMathRender() {
+      if (!bpShadowRoot || !window.renderMathInElement) return;
+
+      // Tiêm CSS vào Shadow DOM nếu chưa có
+      if (!bpShadowRoot.querySelector('#katex-css')) {
+        const link = document.createElement('link');
+        link.id = 'katex-css';
+        link.rel = 'stylesheet';
+        link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
+        bpShadowRoot.appendChild(link);
+      }
+
+      // Quét và render
+      renderMathInElement(bpShadowRoot, {
+        delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '$', right: '$', display: false},
+          {left: '\\(', right: '\\)', display: false},
+          {left: '\\[', right: '\\]', display: true}
+        ],
+        // QUAN TRỌNG: Xóa 'code' và 'pre' khỏi danh sách bỏ qua để bắt được Markdown của Botpress
+        ignoredTags: ["script", "noscript", "style", "textarea", "option"], 
+        throwOnError: false
       });
     }
 
-    // 2. Hàm ép KaTeX quét và render toán học bên trong Shadow DOM
-    function forceMathRender() {
-      // Đảm bảo thư viện auto-render của KaTeX đã tải xong
-      if (!window.renderMathInElement) return;
-
+    // 2. Cài đặt hệ thống theo dõi thông minh
+    function setupBotpressIntegration() {
+      // Chỉ tìm kiếm 1 lần
       const allElements = document.body.querySelectorAll('*');
       allElements.forEach(el => {
         if (el.shadowRoot) {
-          // Tiêm CSS của KaTeX vào bên trong Shadow DOM để công thức không bị vỡ khung
-          if (!el.shadowRoot.querySelector('#katex-css')) {
-            const link = document.createElement('link');
-            link.id = 'katex-css';
-            link.rel = 'stylesheet';
-            link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
-            el.shadowRoot.appendChild(link);
-          }
+          bpShadowRoot = el.shadowRoot;
           
-          // Quét và render công thức toán học
-          renderMathInElement(el.shadowRoot, {
-            delimiters: [
-              {left: '$$', right: '$$', display: true},
-              {left: '$', right: '$', display: false},
-              {left: '\\(', right: '\\)', display: false},
-              {left: '\\[', right: '\\]', display: true}
-            ],
-            throwOnError: false // Bỏ qua lỗi nhỏ để tránh crash ứng dụng
-          });
+          // Chỉnh size ngay khi tìm thấy
+          el.style.setProperty('zoom', '0.75', 'important');
+          el.style.setProperty('position', 'fixed', 'important');
+          el.style.setProperty('bottom', '20px', 'important');
+          el.style.setProperty('right', '20px', 'important');
+          el.style.setProperty('display', 'block', 'important');
+          el.style.setProperty('visibility', 'visible', 'important');
+          el.style.setProperty('z-index', '9999', 'important');
         }
       });
+
+      if (!bpShadowRoot) return false; // Chưa thấy Botpress thì trả về false để dò tiếp
+
+      // Nếu đã thấy, gắn mắt thần (MutationObserver) theo dõi sự kiện chat
+      if (!chatObserver) {
+        chatObserver = new MutationObserver(() => {
+          // Kỹ thuật Debounce: Khi bot đang gõ chữ (DOM thay đổi liên tục), nó sẽ chờ 300ms.
+          // Nếu bot gõ xong (im lặng 300ms), nó mới chạy render toán học. Tránh giật lag và chống vòng lặp vô hạn.
+          clearTimeout(renderTimeout);
+          renderTimeout = setTimeout(() => {
+            doMathRender();
+          }, 300);
+        });
+
+        // Theo dõi mọi thay đổi từ thẻ con đến nội dung chữ bên trong shadowRoot
+        chatObserver.observe(bpShadowRoot, { 
+          childList: true, 
+          subtree: true,
+          characterData: true 
+        });
+        
+        // Render ngay lần đầu Botpress hiển thị
+        doMathRender();
+      }
+      return true;
     }
 
-    // Chạy fixBotSize
-    const checker = setInterval(fixBotSize, 500);
-    setTimeout(() => clearInterval(checker), 10000);
-
-    // Chạy quét KaTeX liên tục mỗi 1.5 giây
-    setInterval(forceMathRender, 1500);
+    // 3. Vòng lặp dò tìm cực nhẹ: Chạy mỗi 500ms lúc trang mới mở.
+    // Khi nào tìm thấy Botpress và cài đặt thành công thì TỰ ĐỘNG TẮT để không làm lag trang web.
+    const finderInterval = setInterval(() => {
+      const isSuccess = setupBotpressIntegration();
+      if (isSuccess) {
+        clearInterval(finderInterval);
+      }
+    }, 500);
   </script>
 
 </body>
 </html>
+
