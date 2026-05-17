@@ -13,24 +13,10 @@
   <title>Ebook + Botpress</title>
 
   <style>
-    /* Giữ nguyên cấu hình Ebook của bạn */
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
     iframe[src*="heyzine.com"] {
-      width: 100%;
-      height: 100vh;
-      border: none;
-      display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 0;
+      width: 100%; height: 100vh; border: none; display: block;
+      position: absolute; top: 0; left: 0; z-index: 0;
     }
   </style>
 
@@ -39,16 +25,11 @@
       tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
         displayMath: [['$$', '$$'], ['\\[', '\\]']],
-        processEscapes: true, // Cho phép dùng \$
-        processEnvironments: true,
+        processEscapes: true
       },
-      options: {
-        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
-        ignoreHtmlClass: 'tex2jax_ignore',
-        processHtmlClass: 'tex2jax_process'
-      },
-      svg: {
-        fontCache: 'global'
+      svg: { fontCache: 'global' },
+      startup: {
+        typeset: false // Tắt tự động render ban đầu, giao toàn quyền cho setInterval
       }
     };
   </script>
@@ -56,53 +37,49 @@
 </head>
 <body>
 
-  <iframe
-    src="https://heyzine.com/flip-book/4cd679d81b.html"  
-    allowfullscreen
-    allow="clipboard-write"
-    scrolling="no">
-  </iframe>
+  <iframe src="https://heyzine.com/flip-book/4cd679d81b.html" allowfullscreen allow="clipboard-write" scrolling="no"></iframe>
 
   <script src="https://cdn.botpress.cloud/webchat/v3.6/inject.js"></script>
   <script src="https://files.bpcontent.cloud/2026/01/20/13/20260120133434-8RWTQ323.js" defer></script>
   
   <script>
-    // 1. Hàm cố định kích thước Botpress
+    // 1. Hàm giữ nguyên kích thước Botpress
     function fixBotSize() {
-      const allDivs = document.body.querySelectorAll('div');
-      
-      allDivs.forEach(div => {
-        if (div.shadowRoot) {
-            div.style.setProperty('zoom', '0.75', 'important');
-            div.style.setProperty('position', 'fixed', 'important');
-            div.style.setProperty('bottom', '20px', 'important');
-            div.style.setProperty('right', '20px', 'important');
-            div.style.setProperty('display', 'block', 'important');
-            div.style.setProperty('visibility', 'visible', 'important');
-            div.style.setProperty('z-index', '9999', 'important');
+      // Quét TẤT CẢ các thẻ (*) thay vì chỉ quét thẻ DIV
+      const allElements = document.body.querySelectorAll('*');
+      allElements.forEach(el => {
+        if (el.shadowRoot) {
+            el.style.setProperty('zoom', '0.75', 'important');
+            el.style.setProperty('position', 'fixed', 'important');
+            el.style.setProperty('bottom', '20px', 'important');
+            el.style.setProperty('right', '20px', 'important');
+            el.style.setProperty('display', 'block', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('z-index', '9999', 'important');
         }
       });
     }
 
-    // [PHẦN CẬP NHẬT 2] Hàm ép MathJax dịch công thức liên tục (Trị lỗi hiệu ứng gõ chữ)
+    // 2. Hàm ép MathJax quét Shadow DOM chống Crash
     function forceMathJaxRender() {
       if (!window.MathJax || !window.MathJax.typesetPromise) return;
 
-      const allDivs = document.body.querySelectorAll('div');
-      allDivs.forEach(div => {
-        if (div.shadowRoot) {
-          // Lệnh typesetClear giúp xóa bộ nhớ tạm, ép MathJax quét lại bản hoàn chỉnh của tin nhắn
-          MathJax.typesetClear([div.shadowRoot]);
-          MathJax.typesetPromise([div.shadowRoot]).catch((err) => console.log('Lỗi render LaTeX:', err));
+      const allElements = document.body.querySelectorAll('*');
+      allElements.forEach(el => {
+        if (el.shadowRoot) {
+          // Bỏ truyền tham số vào typesetClear để tránh lỗi crash của MathJax v3
+          MathJax.typesetClear();
+          // Ép render lại toàn bộ nội dung trong Botpress
+          MathJax.typesetPromise([el.shadowRoot]).catch(err => {});
         }
       });
     }
 
-    // Chạy fixBotSize nhanh trong 10 giây đầu để set up giao diện
+    // Chạy fixBotSize
     const checker = setInterval(fixBotSize, 500);
     setTimeout(() => clearInterval(checker), 10000);
 
-    // Chạy bộ quét MathJax liên tục mỗi 1.5 giây
+    // Chạy MathJax liên tục mỗi 1.5 giây
     setInterval(forceMathJaxRender, 1500);
   </script>
 
